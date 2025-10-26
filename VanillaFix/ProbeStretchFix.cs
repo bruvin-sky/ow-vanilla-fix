@@ -17,53 +17,14 @@ public static class ProbeStretchFix
 	[HarmonyPatch(nameof(ProbeAnchor.AnchorToObject))]
 	private static bool AnchorToObject(ProbeAnchor __instance, GameObject hitObject, Vector3 hitNormal, Vector3 hitPoint)
 	{
-		OWRigidbody attachedOWRigidbody = hitObject.GetAttachedOWRigidbody(false);
-		if (attachedOWRigidbody.GetMass() < 0.001f)
-		{
-			return false;
-		}
-		if (attachedOWRigidbody.GetMass() < 100f)
-		{
-			Vector3 vector = __instance._probeBody.GetVelocity() - attachedOWRigidbody.GetPointVelocity(__instance._probeBody.GetPosition());
-			attachedOWRigidbody.GetRigidbody().AddForceAtPosition(vector.normalized * 0.005f, hitPoint, ForceMode.Impulse);
-		}
-		__instance._collider.enabled = false;
-		__instance._breakableFragment = hitObject.GetComponentInParent<FragmentIntegrity>();
-		__instance._sandLevelController = null;
-		AstroObject component = attachedOWRigidbody.GetComponent<AstroObject>();
-		if (component != null)
-		{
-			__instance._sandLevelController = component.GetSandLevelController();
-		}
-		__instance._ringworldDam = hitObject.GetComponentInParent<DamDestructionController>();
-		if (__instance._breakableFragment != null || __instance._ringworldDam != null)
-		{
-			__instance._probeNotification.displayMessage = __instance.BuildIntegrityString();
-			if (__instance._notificationPosted)
-			{
-				NotificationManager.SharedInstance.RepostNotifcation(__instance._probeNotification);
-			}
-			else
-			{
-				NotificationManager.SharedInstance.PostNotification(__instance._probeNotification, true);
-				__instance._notificationPosted = true;
-			}
-		}
-		__instance._probeBody.MakeKinematic();
-		__instance._probeBody.transform.rotation = Quaternion.FromToRotation(__instance._probeBody.transform.forward, -hitNormal) * __instance._probeBody.transform.rotation;
-		__instance._probeBody.transform.position = hitPoint;
-		// parent AFTER rotating instead of before, so it adjusts scale using the correct orientation instead of what it was launch at
-		__instance._probeBody.transform.parent = hitObject.transform;
-		__instance._probeBody.GetAttachedForceDetector().enabled = false;
-		__instance._probeBody.GetAttachedFluidDetector().enabled = false;
-		__instance._probeAlignment.enabled = false;
-		__instance._localImpactPos = __instance.transform.localPosition;
-		__instance._anchorTime = Time.time;
-		__instance._anchored = true;
-		// i should really use a transpiler instead of doing this but i dont want to
-		__instance.RaiseEvent(nameof(__instance.OnAnchorToSurface));
-
-		return false;
+		var parentScale = hitObject.transform.localScale;
+		var newScaleX = 1 / parentScale.x;
+		var newScaleY = 1 / parentScale.y;
+		var newScaleZ = 1 / parentScale.z;
+		_probeBody.transform.localScale = new Vector3(newScaleX, newScaleY, newScaleZ);
+		
+		return true;
+		/// no longer overwrites basegame fix to probe affecting orbits
 	}
 
 	// copied from QSB
